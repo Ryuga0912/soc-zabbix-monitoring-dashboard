@@ -1,0 +1,2155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zabbix Monitoring Dashboard v3.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* ==================== ROOT VARIABLES ==================== */
+        :root {
+            --primary-bg: #0a0e27;
+            --secondary-bg: #1a1f3a;
+            --card-bg: #1e2442;
+            --accent-cyan: #00ffff;
+            --accent-purple: #bd00ff;
+            --accent-pink: #ff006e;
+            --accent-yellow: #ffbe0b;
+            --accent-green: #00ff88;
+            --accent-red: #ff0055;
+            --accent-orange: #ff6b35;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b7c3;
+            --border-color: rgba(0, 255, 255, 0.2);
+            --shadow-glow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        /* ==================== RESET & BASE ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0a0e27 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 15s ease infinite;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* ==================== GRID OVERLAY ==================== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ==================== LOGIN SCREEN ==================== */
+        #loginScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0a0e27 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        #loginScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .login-container {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 20px;
+            padding: 50px;
+            width: 450px;
+            max-width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), var(--shadow-glow);
+            animation: loginPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes loginPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.3); }
+            50% { transform: scale(1.02); box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 255, 255, 0.5); }
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-logo h1 {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .login-logo p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .login-button {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border: none;
+            border-radius: 10px;
+            padding: 15px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.4);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            background: rgba(255, 0, 85, 0.2);
+            border: 1px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--accent-red);
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* ==================== MAIN DASHBOARD ==================== */
+        #dashboard {
+            position: relative;
+            z-index: 10;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #dashboard.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* ==================== HEADER ==================== */
+        .header {
+            background: rgba(30, 36, 66, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--border-color);
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: logoPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.5)); }
+            50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(189, 0, 255, 0.8)); }
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--accent-green);
+            border-radius: 20px;
+            padding: 8px 16px;
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .live-text {
+            color: var(--accent-green);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .logout-btn {
+            background: rgba(255, 0, 85, 0.2);
+            border: 1px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: var(--accent-red);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: var(--accent-red);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 0, 85, 0.4);
+        }
+
+        /* ==================== NAVIGATION ==================== */
+        .nav-tabs {
+            background: var(--secondary-bg);
+            border-bottom: 2px solid var(--border-color);
+            padding: 0 40px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .nav-tab {
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 18px 30px;
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-tab::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-tab.active {
+            color: var(--text-primary);
+        }
+
+        .nav-tab.active::before {
+            transform: scaleX(1);
+        }
+
+        /* ==================== MAIN CONTENT ==================== */
+        .container {
+            padding: 40px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ==================== STATS CARDS ==================== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            animation: slideUp 0.6s ease;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), var(--shadow-glow);
+            border-color: var(--accent-cyan);
+        }
+
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.2s; }
+        .stat-card:nth-child(3) { animation-delay: 0.3s; }
+        .stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .stat-title {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-icon {
+            font-size: 24px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-change {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-change.positive {
+            color: var(--accent-green);
+        }
+
+        .stat-change.negative {
+            color: var(--accent-red);
+        }
+
+        /* ==================== CHARTS ==================== */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .chart-card:hover {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            border-color: var(--accent-purple);
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-badge {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 12px;
+            color: var(--accent-cyan);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Graph Rotation Indicator */
+        .rotation-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(189, 0, 255, 0.2);
+            border: 1px solid var(--accent-purple);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 11px;
+            color: var(--accent-purple);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .rotation-timer {
+            font-weight: 700;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .rotation-indicator.rotating::before {
+            content: '⟳';
+            animation: spin 1s linear infinite;
+        }
+
+        /* ==================== TABLES ==================== */
+        .data-table {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: var(--secondary-bg);
+            padding: 20px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .btn-danger {
+            background: rgba(255, 0, 85, 0.2);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .btn-danger:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: var(--secondary-bg);
+        }
+
+        th {
+            padding: 15px 20px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(0, 255, 255, 0.05);
+        }
+
+        td {
+            padding: 15px 20px;
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-critical {
+            background: rgba(255, 0, 85, 0.2);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+
+        .badge-high {
+            background: rgba(255, 107, 53, 0.2);
+            color: var(--accent-orange);
+            border: 1px solid var(--accent-orange);
+        }
+
+        .badge-warning {
+            background: rgba(255, 190, 11, 0.2);
+            color: var(--accent-yellow);
+            border: 1px solid var(--accent-yellow);
+        }
+
+        .badge-info {
+            background: rgba(0, 255, 255, 0.2);
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+        }
+
+        .badge-success {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+
+        /* ==================== ADMIN PANEL ==================== */
+        .admin-notice {
+            background: rgba(189, 0, 255, 0.1);
+            border: 1px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .admin-notice-icon {
+            font-size: 32px;
+        }
+
+        .admin-notice-content h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .admin-notice-content p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ==================== MODALS ==================== */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 30px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: rgba(255, 0, 85, 0.2);
+            border: 1px solid var(--accent-red);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 20px;
+            color: var(--accent-red);
+        }
+
+        .modal-close:hover {
+            background: var(--accent-red);
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        .form-row {
+            margin-bottom: 20px;
+        }
+
+        .form-row label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-row input,
+        .form-row select {
+            width: 100%;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-row input:focus,
+        .form-row select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+        }
+
+        /* ==================== RESPONSIVE ==================== */
+        @media (max-width: 768px) {
+            .header {
+                padding: 15px 20px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-tabs {
+                overflow-x: auto;
+                padding: 0 20px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+        }
+
+        /* ==================== SCROLLBAR ==================== */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-cyan);
+        }
+
+        /* ==================== LOADING SPINNER ==================== */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 255, 255, 0.3);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* ==================== UTILITY CLASSES ==================== */
+        .text-center {
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- ==================== LOGIN SCREEN ==================== -->
+    <div id="loginScreen">
+        <div class="login-container">
+            <div class="login-logo">
+                <h1>🔷 ZABBIX</h1>
+                <p>Monitoring Dashboard v3.0</p>
+            </div>
+            <div class="error-message" id="loginError"></div>
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="login-button">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN DASHBOARD ==================== -->
+    <div id="dashboard">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">🔷 ZABBIX</div>
+                <div class="live-indicator">
+                    <div class="live-dot"></div>
+                    <span class="live-text">LIVE</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">Admin</div>
+                        <div class="user-role" id="userRole">Super Admin</div>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <!-- NAVIGATION -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('overview')">📊 Overview</button>
+            <button class="nav-tab" onclick="switchTab('hosts')">💻 Hosts</button>
+            <button class="nav-tab" onclick="switchTab('problems')">🚨 Problems</button>
+            <button class="nav-tab" onclick="switchTab('graphs')">📈 Graphs</button>
+            <button class="nav-tab" id="adminTab" onclick="switchTab('admin')" style="display: none;">👥 Admin</button>
+        </nav>
+
+        <!-- MAIN CONTENT -->
+        <main class="container">
+            <!-- OVERVIEW TAB -->
+            <div class="tab-content active" id="overviewTab">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Total Hosts</span>
+                            <span class="stat-icon">💻</span>
+                        </div>
+                        <div class="stat-value" id="statTotalHosts">0</div>
+                        <div class="stat-change positive">
+                            <span>▲</span>
+                            <span id="statHostsOnline">0</span> online
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Critical Problems</span>
+                            <span class="stat-icon">🚨</span>
+                        </div>
+                        <div class="stat-value" id="statCriticalProblems">0</div>
+                        <div class="stat-change negative">
+                            <span id="statTotalProblems">0</span> total problems
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Avg CPU Usage</span>
+                            <span class="stat-icon">⚡</span>
+                        </div>
+                        <div class="stat-value" id="statAvgCpu">0%</div>
+                        <div class="stat-change positive">
+                            <span>Real-time monitoring</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-title">Avg Memory Usage</span>
+                            <span class="stat-icon">🧠</span>
+                        </div>
+                        <div class="stat-value" id="statAvgMemory">0%</div>
+                        <div class="stat-change positive">
+                            <span>All systems</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title" id="chart1Title">Loading...</h3>
+                            <span class="chart-badge">LIVE</span>
+                        </div>
+                        <div class="rotation-indicator">
+                            <span class="rotation-timer" id="rotationTimer1">60s</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart1"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title" id="chart2Title">Loading...</h3>
+                            <span class="chart-badge">LIVE</span>
+                        </div>
+                        <div class="rotation-indicator">
+                            <span class="rotation-timer" id="rotationTimer2">60s</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart2"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Problems -->
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3 class="table-title">Recent Problems</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Host</th>
+                                <th>Problem</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentProblemsTable">
+                            <tr>
+                                <td colspan="6" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- HOSTS TAB -->
+            <div class="tab-content" id="hostsTab">
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3 class="table-title">Monitored Hosts</h3>
+                        <div class="table-actions">
+                            <button class="btn" id="addHostBtn" onclick="openAddHostModal()" style="display: none;">+ Add Host</button>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hostname</th>
+                                <th>IP Address</th>
+                                <th>Group</th>
+                                <th>Status</th>
+                                <th>CPU</th>
+                                <th>Memory</th>
+                                <th>Disk</th>
+                                <th>Availability</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hostsTable">
+                            <tr>
+                                <td colspan="9" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PROBLEMS TAB -->
+            <div class="tab-content" id="problemsTab">
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3 class="table-title">Active Problems</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Host</th>
+                                <th>Problem</th>
+                                <th>Severity</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="problemsTable">
+                            <tr>
+                                <td colspan="7" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- GRAPHS TAB -->
+            <div class="tab-content" id="graphsTab">
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">System CPU Usage</h3>
+                            <span class="chart-badge">Last 2 Hours</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="cpuChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Memory Utilization</h3>
+                            <span class="chart-badge">Last 2 Hours</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="memoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Network Traffic</h3>
+                            <span class="chart-badge">Last 2 Hours</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="networkChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Problems by Severity</h3>
+                            <span class="chart-badge">Current</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="problemsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN TAB -->
+            <div class="tab-content" id="adminTab-content">
+                <div class="admin-notice">
+                    <div class="admin-notice-icon">🔐</div>
+                    <div class="admin-notice-content">
+                        <h3>Super Admin Panel</h3>
+                        <p>Only administrators can create users and add hosts. All changes are logged.</p>
+                    </div>
+                </div>
+
+                <div class="data-table mb-20">
+                    <div class="table-header">
+                        <h3 class="table-title">User Management</h3>
+                        <div class="table-actions">
+                            <button class="btn" onclick="openAddUserModal()">+ Add User</button>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable">
+                            <tr>
+                                <td colspan="7" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3 class="table-title">Audit Log</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Entity</th>
+                                <th>Details</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogTable">
+                            <tr>
+                                <td colspan="6" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+    <!-- Add User Modal -->
+    <div class="modal" id="addUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add New User</h2>
+                <div class="modal-close" onclick="closeModal('addUserModal')">×</div>
+            </div>
+            <form id="addUserForm">
+                <div class="form-row">
+                    <label>Username *</label>
+                    <input type="text" id="newUsername" required>
+                </div>
+                <div class="form-row">
+                    <label>Password *</label>
+                    <input type="password" id="newPassword" required minlength="8">
+                </div>
+                <div class="form-row">
+                    <label>Full Name *</label>
+                    <input type="text" id="newFullName" required>
+                </div>
+                <div class="form-row">
+                    <label>Email *</label>
+                    <input type="email" id="newEmail" required>
+                </div>
+                <div class="form-row">
+                    <label>Role *</label>
+                    <select id="newRole" required>
+                        <option value="analyst">Analyst</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addUserModal')">Cancel</button>
+                    <button type="submit" class="btn">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Host Modal -->
+    <div class="modal" id="addHostModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add New Host</h2>
+                <div class="modal-close" onclick="closeModal('addHostModal')">×</div>
+            </div>
+            <form id="addHostForm">
+                <div class="form-row">
+                    <label>Hostname *</label>
+                    <input type="text" id="newHostname" required>
+                </div>
+                <div class="form-row">
+                    <label>IP Address *</label>
+                    <input type="text" id="newIpAddress" required pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$">
+                </div>
+                <div class="form-row">
+                    <label>DNS Name</label>
+                    <input type="text" id="newDnsName">
+                </div>
+                <div class="form-row">
+                    <label>Host Group</label>
+                    <select id="newHostGroup">
+                        <option value="Linux servers">Linux servers</option>
+                        <option value="Windows servers">Windows servers</option>
+                        <option value="Web Servers">Web Servers</option>
+                        <option value="Database Servers">Database Servers</option>
+                        <option value="Application Servers">Application Servers</option>
+                        <option value="Network Devices">Network Devices</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Operating System</label>
+                    <input type="text" id="newOs" placeholder="e.g., Ubuntu 22.04">
+                </div>
+                <div class="form-row">
+                    <label>Location</label>
+                    <input type="text" id="newLocation" placeholder="e.g., Data Center A">
+                </div>
+                <div class="form-row">
+                    <label>Department</label>
+                    <input type="text" id="newDepartment" placeholder="e.g., IT Infrastructure">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addHostModal')">Cancel</button>
+                    <button type="submit" class="btn">Add Host</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- ==================== JAVASCRIPT ==================== -->
+    <script>
+        // ==================== CONFIGURATION ====================
+        const API_URL = 'http://localhost:3001/api';
+        const WS_URL = 'ws://localhost:8080';
+        const GRAPH_ROTATION_INTERVAL = 60000; // 60 seconds
+
+        // ==================== STATE ====================
+        let authToken = null;
+        let currentUser = null;
+        let websocket = null;
+        let charts = {};
+        let currentGraphIndex = 0;
+        let graphConfigs = [];
+        let rotationInterval = null;
+        let rotationCountdown = 60;
+
+        // ==================== AUTHENTICATION ====================
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    
+                    // Hide login screen with fade out
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    
+                    // Show dashboard with zoom-in effect
+                    setTimeout(() => {
+                        document.getElementById('dashboard').classList.add('show');
+                        initDashboard();
+                    }, 500);
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed';
+                    errorDiv.classList.add('show');
+                    setTimeout(() => errorDiv.classList.remove('show'), 3000);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = 'Connection error. Please try again.';
+                errorDiv.classList.add('show');
+                setTimeout(() => errorDiv.classList.remove('show'), 3000);
+            }
+        });
+
+        function logout() {
+            fetch(`${API_URL}/auth/logout`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            }).catch(err => console.error('Logout error:', err));
+
+            authToken = null;
+            currentUser = null;
+            
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+
+            // Stop graph rotation
+            if (rotationInterval) {
+                clearInterval(rotationInterval);
+                rotationInterval = null;
+            }
+
+            // Zoom out effect
+            document.getElementById('dashboard').classList.remove('show');
+            
+            setTimeout(() => {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('loginForm').reset();
+            }, 800);
+        }
+
+        // ==================== DASHBOARD INITIALIZATION ====================
+        async function initDashboard() {
+            // Set user info
+            document.getElementById('userName').textContent = currentUser.fullName;
+            document.getElementById('userRole').textContent = currentUser.role.toUpperCase();
+            document.getElementById('userAvatar').textContent = currentUser.fullName[0].toUpperCase();
+
+            // Show admin tab only for admin users
+            if (currentUser.role === 'admin') {
+                document.getElementById('adminTab').style.display = 'block';
+                document.getElementById('addHostBtn').style.display = 'block';
+            }
+
+            // Initialize WebSocket
+            initWebSocket();
+
+            // Load initial data
+            await loadDashboardStats();
+            await loadRecentProblems();
+            await loadHosts();
+            await loadProblems();
+            await loadGraphConfigs();
+
+            if (currentUser.role === 'admin') {
+                await loadUsers();
+                await loadAuditLog();
+            }
+
+            // Initialize graphs
+            initCharts();
+
+            // Start graph rotation
+            startGraphRotation();
+
+            // Refresh data periodically
+            setInterval(loadDashboardStats, 5000);
+            setInterval(loadRecentProblems, 10000);
+        }
+
+        // ==================== WEBSOCKET ====================
+        function initWebSocket() {
+            websocket = new WebSocket(WS_URL);
+
+            websocket.onopen = () => {
+                console.log('✅ WebSocket connected');
+            };
+
+            websocket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                
+                if (message.type === 'stats_update') {
+                    updateStatsDisplay(message.data);
+                } else if (message.type === 'graph_rotation') {
+                    // Server-triggered graph rotation (backup mechanism)
+                    console.log('Graph rotation signal received');
+                }
+            };
+
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            websocket.onclose = () => {
+                console.log('WebSocket disconnected');
+                // Attempt to reconnect after 5 seconds
+                setTimeout(() => {
+                    if (authToken) initWebSocket();
+                }, 5000);
+            };
+        }
+
+        // ==================== API CALLS ====================
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                        ...options.headers
+                    }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    logout();
+                    throw new Error('Session expired');
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API call error:', error);
+                throw error;
+            }
+        }
+
+        async function loadDashboardStats() {
+            try {
+                const stats = await apiCall('/dashboard/stats');
+                updateStatsDisplay(stats);
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        function updateStatsDisplay(stats) {
+            document.getElementById('statTotalHosts').textContent = stats.totalHosts || 0;
+            document.getElementById('statHostsOnline').textContent = stats.hostsOnline || 0;
+            document.getElementById('statCriticalProblems').textContent = stats.criticalProblems || 0;
+            document.getElementById('statTotalProblems').textContent = stats.totalProblems || 0;
+            document.getElementById('statAvgCpu').textContent = (stats.avgCpuUsage || 0) + '%';
+            document.getElementById('statAvgMemory').textContent = (stats.avgMemoryUsage || 0) + '%';
+        }
+
+        async function loadRecentProblems() {
+            try {
+                const problems = await apiCall('/problems?status=PROBLEM');
+                const tbody = document.getElementById('recentProblemsTable');
+                
+                if (problems.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center">No active problems</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = problems.slice(0, 10).map(p => `
+                    <tr>
+                        <td>${formatDateTime(p.event_time)}</td>
+                        <td>${p.hostname}</td>
+                        <td>${p.problem_name}</td>
+                        <td><span class="badge badge-${p.severity.toLowerCase()}">${p.severity}</span></td>
+                        <td><span class="badge badge-${p.acknowledged ? 'success' : 'info'}">${p.acknowledged ? 'Acknowledged' : 'New'}</span></td>
+                        <td>
+                            ${!p.acknowledged ? `<button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick="acknowledgeProblem(${p.id})">Acknowledge</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading recent problems:', error);
+            }
+        }
+
+        async function loadHosts() {
+            try {
+                const hosts = await apiCall('/hosts');
+                const tbody = document.getElementById('hostsTable');
+                
+                if (hosts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-center">No hosts found</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = hosts.map(h => `
+                    <tr>
+                        <td>${h.hostname}</td>
+                        <td>${h.ip_address}</td>
+                        <td>${h.host_group || 'N/A'}</td>
+                        <td><span class="badge badge-${h.status === 'Enabled' ? 'success' : 'warning'}">${h.status}</span></td>
+                        <td>${h.cpu_usage?.toFixed(1) || 0}%</td>
+                        <td>${h.memory_usage?.toFixed(1) || 0}%</td>
+                        <td>${h.disk_usage?.toFixed(1) || 0}%</td>
+                        <td><span class="badge badge-${h.availability === 'Available' ? 'success' : 'critical'}">${h.availability}</span></td>
+                        <td>
+                            ${currentUser.role === 'admin' ? `
+                                <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteHost(${h.id}, '${h.hostname}')">Delete</button>
+                            ` : 'N/A'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading hosts:', error);
+            }
+        }
+
+        async function loadProblems() {
+            try {
+                const problems = await apiCall('/problems');
+                const tbody = document.getElementById('problemsTable');
+                
+                if (problems.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No problems found</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = problems.map(p => `
+                    <tr>
+                        <td>${formatDateTime(p.event_time)}</td>
+                        <td>${p.hostname}</td>
+                        <td>${p.problem_name}</td>
+                        <td><span class="badge badge-${p.severity.toLowerCase()}">${p.severity}</span></td>
+                        <td>${p.description || 'N/A'}</td>
+                        <td>
+                            <span class="badge badge-${p.status === 'PROBLEM' ? 'critical' : 'success'}">${p.status}</span>
+                            ${p.acknowledged ? '<span class="badge badge-info" style="margin-left: 5px;">ACK</span>' : ''}
+                        </td>
+                        <td>
+                            ${!p.acknowledged && p.status === 'PROBLEM' ? `
+                                <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick="acknowledgeProblem(${p.id})">Acknowledge</button>
+                            ` : 'N/A'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading problems:', error);
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const users = await apiCall('/admin/users');
+                const tbody = document.getElementById('usersTable');
+                
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td>${u.username}</td>
+                        <td>${u.fullName}</td>
+                        <td>${u.email}</td>
+                        <td><span class="badge badge-${u.role === 'admin' ? 'critical' : 'info'}">${u.role.toUpperCase()}</span></td>
+                        <td><span class="badge badge-${u.isActive ? 'success' : 'warning'}">${u.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td>${u.lastLogin ? formatDateTime(u.lastLogin) : 'Never'}</td>
+                        <td>
+                            ${u.id !== 1 ? `
+                                <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteUser(${u.id}, '${u.username}')">Delete</button>
+                            ` : 'Protected'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        async function loadAuditLog() {
+            try {
+                const logs = await apiCall('/admin/audit-log?limit=50');
+                const tbody = document.getElementById('auditLogTable');
+                
+                if (logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center">No audit logs</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = logs.map(l => `
+                    <tr>
+                        <td>${formatDateTime(l.timestamp)}</td>
+                        <td>${l.username}</td>
+                        <td><span class="badge badge-info">${l.action}</span></td>
+                        <td>${l.entity_type || 'N/A'}</td>
+                        <td>${l.details || 'N/A'}</td>
+                        <td>${l.ip_address || 'N/A'}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading audit log:', error);
+            }
+        }
+
+        // ==================== CHARTS ====================
+        async function loadGraphConfigs() {
+            try {
+                graphConfigs = await apiCall('/graphs/configs');
+                console.log('Graph configs loaded:', graphConfigs.length);
+            } catch (error) {
+                console.error('Error loading graph configs:', error);
+                // Fallback configs
+                graphConfigs = [
+                    { id: 1, graph_name: 'System CPU Usage', graph_type: 'line', metric_types: 'cpu' },
+                    { id: 2, graph_name: 'Memory Utilization', graph_type: 'area', metric_types: 'memory' },
+                    { id: 3, graph_name: 'Network Traffic', graph_type: 'line', metric_types: 'network' },
+                    { id: 4, graph_name: 'Disk I/O Performance', graph_type: 'line', metric_types: 'disk' }
+                ];
+            }
+        }
+
+        function initCharts() {
+            // Overview tab rotating charts
+            createRotatingChart('chart1');
+            createRotatingChart('chart2');
+
+            // Graphs tab static charts
+            createStaticCharts();
+        }
+
+        async function createRotatingChart(chartId) {
+            const canvas = document.getElementById(chartId);
+            const ctx = canvas.getContext('2d');
+
+            charts[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Loading...',
+                        data: [],
+                        borderColor: 'rgba(0, 255, 255, 0.8)',
+                        backgroundColor: 'rgba(0, 255, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(26, 31, 58, 0.9)',
+                            titleColor: '#00ffff',
+                            bodyColor: '#ffffff',
+                            borderColor: 'rgba(0, 255, 255, 0.3)',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(0, 255, 255, 0.1)' },
+                            ticks: { color: '#b0b7c3' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(0, 255, 255, 0.1)' },
+                            ticks: { color: '#b0b7c3' }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+
+            // Load initial data
+            await updateRotatingChart(chartId);
+        }
+
+        async function updateRotatingChart(chartId) {
+            try {
+                const configIndex = chartId === 'chart1' ? currentGraphIndex : (currentGraphIndex + 1) % graphConfigs.length;
+                const config = graphConfigs[configIndex];
+
+                if (!config) return;
+
+                // Update title
+                document.getElementById(`${chartId}Title`).textContent = config.graph_name;
+
+                // Fetch metrics
+                const metrics = await apiCall(`/metrics/aggregated?metric_type=${config.metric_types.split(',')[0]}&hours=2`);
+
+                if (metrics && metrics.length > 0) {
+                    const labels = metrics.reverse().map(m => new Date(m.time_bucket).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+                    const values = metrics.map(m => m.avg_value);
+
+                    charts[chartId].data.labels = labels;
+                    charts[chartId].data.datasets[0].label = config.graph_name;
+                    charts[chartId].data.datasets[0].data = values;
+                    
+                    // Dynamic color based on graph type
+                    const colors = [
+                        { border: 'rgba(0, 255, 255, 0.8)', bg: 'rgba(0, 255, 255, 0.1)' },
+                        { border: 'rgba(189, 0, 255, 0.8)', bg: 'rgba(189, 0, 255, 0.1)' },
+                        { border: 'rgba(255, 0, 110, 0.8)', bg: 'rgba(255, 0, 110, 0.1)' },
+                        { border: 'rgba(0, 255, 136, 0.8)', bg: 'rgba(0, 255, 136, 0.1)' }
+                    ];
+                    const colorSet = colors[configIndex % colors.length];
+                    
+                    charts[chartId].data.datasets[0].borderColor = colorSet.border;
+                    charts[chartId].data.datasets[0].backgroundColor = colorSet.bg;
+                    charts[chartId].update();
+                }
+            } catch (error) {
+                console.error('Error updating rotating chart:', error);
+            }
+        }
+
+        function startGraphRotation() {
+            // Update countdown timer
+            setInterval(() => {
+                rotationCountdown--;
+                if (rotationCountdown <= 0) {
+                    rotationCountdown = 60;
+                }
+                document.getElementById('rotationTimer1').textContent = `${rotationCountdown}s`;
+                document.getElementById('rotationTimer2').textContent = `${rotationCountdown}s`;
+            }, 1000);
+
+            // Rotate graphs every 60 seconds
+            rotationInterval = setInterval(async () => {
+                currentGraphIndex = (currentGraphIndex + 1) % graphConfigs.length;
+                rotationCountdown = 60;
+                
+                // Add rotating animation
+                document.querySelectorAll('.rotation-indicator').forEach(el => {
+                    el.classList.add('rotating');
+                    setTimeout(() => el.classList.remove('rotating'), 1000);
+                });
+
+                // Update both charts
+                await updateRotatingChart('chart1');
+                await updateRotatingChart('chart2');
+                
+                console.log('📊 Graphs rotated to index:', currentGraphIndex);
+            }, GRAPH_ROTATION_INTERVAL);
+        }
+
+        async function createStaticCharts() {
+            // CPU Chart
+            const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+            charts.cpuChart = new Chart(cpuCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: getChartOptions('CPU Usage (%)')
+            });
+
+            // Memory Chart
+            const memCtx = document.getElementById('memoryChart').getContext('2d');
+            charts.memoryChart = new Chart(memCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: getChartOptions('Memory Usage (%)')
+            });
+
+            // Network Chart
+            const netCtx = document.getElementById('networkChart').getContext('2d');
+            charts.networkChart = new Chart(netCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: getChartOptions('Network Traffic (Mbps)')
+            });
+
+            // Problems Chart
+            const probCtx = document.getElementById('problemsChart').getContext('2d');
+            charts.problemsChart = new Chart(probCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical', 'High', 'Average', 'Warning', 'Information'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgba(255, 0, 85, 0.8)',
+                            'rgba(255, 107, 53, 0.8)',
+                            'rgba(255, 190, 11, 0.8)',
+                            'rgba(0, 255, 255, 0.8)',
+                            'rgba(0, 255, 136, 0.8)'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#b0b7c3' }
+                        }
+                    }
+                }
+            });
+
+            // Load data for static charts
+            await updateStaticCharts();
+        }
+
+        async function updateStaticCharts() {
+            try {
+                // Update CPU chart
+                const cpuMetrics = await apiCall('/metrics/aggregated?metric_type=cpu&hours=2');
+                if (cpuMetrics && cpuMetrics.length > 0) {
+                    updateLineChart(charts.cpuChart, cpuMetrics, 'CPU Usage', 'rgba(0, 255, 255, 0.8)');
+                }
+
+                // Update Memory chart
+                const memMetrics = await apiCall('/metrics/aggregated?metric_type=memory&hours=2');
+                if (memMetrics && memMetrics.length > 0) {
+                    updateLineChart(charts.memoryChart, memMetrics, 'Memory Usage', 'rgba(189, 0, 255, 0.8)');
+                }
+
+                // Update Network chart
+                const netMetrics = await apiCall('/metrics/aggregated?metric_type=network&hours=2');
+                if (netMetrics && netMetrics.length > 0) {
+                    updateLineChart(charts.networkChart, netMetrics, 'Network Traffic', 'rgba(255, 0, 110, 0.8)');
+                }
+
+                // Update Problems chart
+                const problems = await apiCall('/problems');
+                const severityCounts = {
+                    'Critical': 0,
+                    'High': 0,
+                    'Average': 0,
+                    'Warning': 0,
+                    'Information': 0
+                };
+                problems.forEach(p => {
+                    if (severityCounts.hasOwnProperty(p.severity)) {
+                        severityCounts[p.severity]++;
+                    }
+                });
+                charts.problemsChart.data.datasets[0].data = Object.values(severityCounts);
+                charts.problemsChart.update();
+            } catch (error) {
+                console.error('Error updating static charts:', error);
+            }
+        }
+
+        function updateLineChart(chart, metrics, label, color) {
+            const reversed = metrics.reverse();
+            const labels = reversed.map(m => new Date(m.time_bucket).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+            const values = reversed.map(m => m.avg_value);
+
+            chart.data.labels = labels;
+            chart.data.datasets = [{
+                label: label,
+                data: values,
+                borderColor: color,
+                backgroundColor: color.replace('0.8', '0.1'),
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }];
+            chart.update();
+        }
+
+        function getChartOptions(yAxisLabel) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(26, 31, 58, 0.9)',
+                        titleColor: '#00ffff',
+                        bodyColor: '#ffffff',
+                        borderColor: 'rgba(0, 255, 255, 0.3)',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(0, 255, 255, 0.1)' },
+                        ticks: { color: '#b0b7c3' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0, 255, 255, 0.1)' },
+                        ticks: { color: '#b0b7c3' },
+                        title: {
+                            display: true,
+                            text: yAxisLabel,
+                            color: '#b0b7c3'
+                        }
+                    }
+                }
+            };
+        }
+
+        // ==================== ACTIONS ====================
+        async function acknowledgeProblem(problemId) {
+            try {
+                await apiCall(`/problems/${problemId}/acknowledge`, {
+                    method: 'POST',
+                    body: JSON.stringify({ message: 'Acknowledged by ' + currentUser.username })
+                });
+                await loadRecentProblems();
+                await loadProblems();
+            } catch (error) {
+                alert('Error acknowledging problem');
+            }
+        }
+
+        async function deleteHost(hostId, hostname) {
+            if (!confirm(`Delete host "${hostname}"?`)) return;
+
+            try {
+                await apiCall(`/hosts/${hostId}`, { method: 'DELETE' });
+                await loadHosts();
+                await loadDashboardStats();
+            } catch (error) {
+                alert('Error deleting host');
+            }
+        }
+
+        async function deleteUser(userId, username) {
+            if (!confirm(`Delete user "${username}"?`)) return;
+
+            try {
+                await apiCall(`/admin/users/${userId}`, { method: 'DELETE' });
+                await loadUsers();
+            } catch (error) {
+                alert('Error deleting user');
+            }
+        }
+
+        // ==================== MODALS ====================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function openAddUserModal() {
+            document.getElementById('addUserForm').reset();
+            openModal('addUserModal');
+        }
+
+        function openAddHostModal() {
+            document.getElementById('addHostForm').reset();
+            openModal('addHostModal');
+        }
+
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            try {
+                await apiCall('/admin/users', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: document.getElementById('newUsername').value,
+                        password: document.getElementById('newPassword').value,
+                        fullName: document.getElementById('newFullName').value,
+                        email: document.getElementById('newEmail').value,
+                        role: document.getElementById('newRole').value
+                    })
+                });
+                
+                closeModal('addUserModal');
+                await loadUsers();
+                await loadAuditLog();
+            } catch (error) {
+                alert('Error creating user');
+            }
+        });
+
+        document.getElementById('addHostForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            try {
+                await apiCall('/hosts', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        hostname: document.getElementById('newHostname').value,
+                        ip_address: document.getElementById('newIpAddress').value,
+                        dns_name: document.getElementById('newDnsName').value,
+                        host_group: document.getElementById('newHostGroup').value,
+                        os: document.getElementById('newOs').value,
+                        location: document.getElementById('newLocation').value,
+                        department: document.getElementById('newDepartment').value
+                    })
+                });
+                
+                closeModal('addHostModal');
+                await loadHosts();
+                await loadDashboardStats();
+            } catch (error) {
+                alert('Error adding host');
+            }
+        });
+
+        // ==================== NAVIGATION ====================
+        function switchTab(tabName) {
+            // Update nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            const contentId = tabName === 'admin' ? 'adminTab-content' : `${tabName}Tab`;
+            document.getElementById(contentId).classList.add('active');
+
+            // Load data for specific tabs
+            if (tabName === 'graphs') {
+                updateStaticCharts();
+            }
+        }
+
+        // ==================== UTILITIES ====================
+        function formatDateTime(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Close modals on background click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

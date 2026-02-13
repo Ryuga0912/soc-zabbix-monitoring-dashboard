@@ -1,0 +1,36 @@
+{
+  "name": "zabbix-monitoring-dashboard",
+  "version": "3.0.0",
+  "description": "Zabbix Monitoring Dashboard with Real-time Animations and Admin Controls",
+  "main": "zabbix-server.js",
+  "scripts": {
+    "start": "node zabbix-server.js",
+    "dev": "nodemon zabbix-server.js"
+  },
+  "keywords": [
+    "zabbix",
+    "monitoring",
+    "dashboard",
+    "real-time",
+    "websocket",
+    "admin",
+    "charts"
+  ],
+  "author": "Zabbix Dashboard Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.6",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
